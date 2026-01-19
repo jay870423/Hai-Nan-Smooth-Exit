@@ -51,7 +51,9 @@ export default async function handler(req, res) {
       if (!API_KEYS.gemini) throw new Error("Gemini API Key missing");
       
       // Use standard REST API to avoid dependency issues on serverless if SDK isn't present
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${API_KEYS.gemini}`;
+      // FIXED: Use gemini-2.0-flash-exp (or gemini-1.5-flash) for Vision tasks. 
+      // 'gemini-2.5-flash-image' is typically for generation, not analysis.
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${API_KEYS.gemini}`;
       
       const geminiPayload = {
         contents: [{
@@ -70,7 +72,7 @@ export default async function handler(req, res) {
 
       if (!resp.ok) {
         const err = await resp.text();
-        throw new Error(`Gemini API Error: ${err}`);
+        throw new Error(`Gemini API Error: ${resp.status} - ${err}`);
       }
       
       const data = await resp.json();
@@ -90,10 +92,15 @@ export default async function handler(req, res) {
         apiKey = API_KEYS.deepseek;
         apiUrl = "https://api.deepseek.com/chat/completions";
         modelName = "deepseek-chat"; 
+        // Note: Deepseek V3 currently may not support image_url in standard endpoint.
       } else if (provider === 'doubao') {
         apiKey = API_KEYS.doubao;
         apiUrl = "https://ark.cn-beijing.volces.com/api/v3/chat/completions";
         modelName = API_KEYS.doubaoEndpoint; // Doubao uses endpoint ID as model
+        
+        if (!modelName) {
+           throw new Error("Doubao Endpoint ID missing. Check NEXT_PUBLIC_DOUBAO_ENDPOINT_ID env var.");
+        }
       }
 
       if (!apiKey) throw new Error(`${provider} API Key missing`);
@@ -123,7 +130,7 @@ export default async function handler(req, res) {
 
       if (!resp.ok) {
         const err = await resp.text();
-        throw new Error(`${provider} API Error: ${err}`);
+        throw new Error(`${provider} API Error: ${resp.status} - ${err}`);
       }
 
       const data = await resp.json();
