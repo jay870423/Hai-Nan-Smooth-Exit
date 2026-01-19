@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PortData, PortStatus } from '../types';
 import { ReportModal } from './ReportModal';
+import { UserGuide } from './UserGuide';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 
 // Initial state is empty to prevent flashing mock data when connected
@@ -17,6 +18,7 @@ const MOCK_PORTS: PortData[] = [
 export const CheckpointList: React.FC = () => {
   const [ports, setPorts] = useState<PortData[]>(INITIAL_PORTS);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -255,6 +257,7 @@ export const CheckpointList: React.FC = () => {
         </div>
       )}
 
+      {/* Header Area */}
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">查验红绿灯</h1>
@@ -268,11 +271,15 @@ export const CheckpointList: React.FC = () => {
              </p>
           </div>
         </div>
-        <div className="flex flex-col items-end">
-          <span className="text-xs bg-teal-100 text-teal-700 px-2 py-1 rounded-full mb-1">
-            Live {ports.length} 个口岸
-          </span>
-        </div>
+        
+        {/* Help Button (Entry for User Guide) */}
+        <button 
+           onClick={() => setIsGuideOpen(true)}
+           className="flex items-center space-x-1 bg-white border border-gray-200 px-3 py-1.5 rounded-full shadow-sm active:scale-95 transition-all mb-1"
+        >
+           <span className="text-lg">📖</span>
+           <span className="text-xs font-bold text-gray-600">操作手册</span>
+        </button>
       </div>
 
       <div className="grid gap-4">
@@ -367,6 +374,11 @@ export const CheckpointList: React.FC = () => {
         ports={ports}
         onSubmit={handleReportSubmit}
         isSubmitting={isSubmitting}
+      />
+      
+      <UserGuide 
+        isOpen={isGuideOpen}
+        onClose={() => setIsGuideOpen(false)}
       />
     </div>
   );
