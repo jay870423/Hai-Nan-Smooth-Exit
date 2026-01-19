@@ -1,0 +1,7 @@
+{
+  "name": "Hai Nan Smooth Exit",
+  "description": "全岛唯一的“二线关口”实时避雷与行李合规AI助手。",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
