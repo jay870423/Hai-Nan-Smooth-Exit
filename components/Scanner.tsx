@@ -12,6 +12,7 @@ export const Scanner: React.FC = () => {
   
   // Track if current result has been added to quota
   const [isAddedToQuota, setIsAddedToQuota] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -59,11 +60,20 @@ export const Scanner: React.FC = () => {
   };
 
   // Helper to categorize string items into specific quota categories
+  // Expanded keywords to catch more AI output variations
   const categorizeItem = (itemName: string): string => {
     const lower = itemName.toLowerCase();
-    if (/手机|phone|iphone|android|mobile|华为|小米|apple/i.test(lower)) return 'phone';
-    if (/酒|wine|liquor|beer|alcohol|茅台|五粮液|whiskey/i.test(lower)) return 'alcohol';
-    if (/霜|乳|液|精华|口红|粉底|mask|cream|lotion|serum|lipstick|makeup|skincare|化妆|护肤/i.test(lower)) return 'cosmetics';
+    
+    // 1. Phone (Strict limit: 4)
+    if (/手机|phone|iphone|android|mobile|huawei|xiaomi|honor|oppo|vivo|samsung|galaxy|mate|p[0-9]+|apple/i.test(lower)) return 'phone';
+    
+    // 2. Alcohol (Strict limit: 1500ml)
+    if (/酒|wine|liquor|beer|alcohol|whiskey|whisky|vodka|gin|rum|brandy|cognac|champagne|hennessy|martell|remy|moutai|kweichow|茅台|五粮液|国窖|xo|vsop/i.test(lower)) return 'alcohol';
+    
+    // 3. Cosmetics (Strict limit: 30 items)
+    // Expanded significantly to catch brands and types
+    if (/霜|乳|液|精华|口红|粉底|眼影|腮红|眉笔|睫毛|散粉|遮瑕|香水|mask|cream|lotion|serum|lipstick|makeup|skincare|cosmetic|perfume|fragrance|toilette|parfum|eye|face|gel|toner|cleanser|balm|oil|shadow|powder|blush|brow|liner|mascara|palette|sk-ii|lamer|estee|lancome|dior|chanel|ysl|armani|givency|clarins|sisley|kiel/i.test(lower)) return 'cosmetics';
+    
     return 'other';
   };
 
@@ -79,6 +89,7 @@ export const Scanner: React.FC = () => {
       // 2. Update Category Details (Count/Volume)
       // Structure: { cosmetics: 5, phone: 1, alcohol: 1000 }
       const currentDetails = JSON.parse(localStorage.getItem('hainan_quota_details') || '{}');
+      let addedCounts: Record<string, number> = {};
       
       result.detectedItems.forEach(item => {
         const category = categorizeItem(item);
@@ -90,18 +101,36 @@ export const Scanner: React.FC = () => {
         // Assumption: 1 detected "item" of alcohol is approx 500ml standard bottle if not specified.
         if (category === 'alcohol') {
             currentDetails[category] = currentVal + 500;
+            addedCounts[category] = (addedCounts[category] || 0) + 1; // Count bottles for toast
         } else {
             // Others are just counts
             currentDetails[category] = currentVal + 1;
+            addedCounts[category] = (addedCounts[category] || 0) + 1;
         }
       });
       
       localStorage.setItem('hainan_quota_details', JSON.stringify(currentDetails));
 
       setIsAddedToQuota(true);
-      // Optional: Trigger a custom event if we wanted to update other components immediately without unmount
+
+      // Show Feedback
+      const categoriesDetected = Object.keys(addedCounts);
+      if (categoriesDetected.length > 0) {
+        const detailStr = categoriesDetected.map(k => {
+            const label = k === 'cosmetics' ? '化妆品' : k === 'phone' ? '手机' : '酒类';
+            return `${label}+${addedCounts[k]}`;
+        }).join(', ');
+        setNotification(`已记账 ¥${result.estimatedValue}，包含: ${detailStr}`);
+      } else {
+        setNotification(`已记账 ¥${result.estimatedValue} (未检测到限购品类)`);
+      }
+
+      // Auto hide notification
+      setTimeout(() => setNotification(null), 3000);
+
     } catch (e) {
       console.error("Failed to save quota", e);
+      setNotification("保存失败，请重试");
     }
   };
 
@@ -122,6 +151,13 @@ export const Scanner: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full p-4 pb-24 relative">
+       {/* Toast Notification */}
+       {notification && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full text-sm shadow-xl z-[70] animate-fade-in-down whitespace-nowrap">
+          {notification}
+        </div>
+      )}
+
       {/* Onboarding Overlay */}
       {showOnboarding && (
         <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm rounded-2xl animate-fade-in" style={{ margin: -16 }}>
