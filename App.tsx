@@ -29,8 +29,13 @@ const App: React.FC = () => {
       {/* Top decorative bar */}
       <div className="h-1 bg-gradient-to-r from-teal-400 to-blue-500 w-full fixed top-0 left-0 right-0 z-50"></div>
       
-      <main className="pt-4 h-full">
+      <main className="pt-4 h-full relative min-h-screen box-border">
         {renderContent()}
+        
+        {/* Copyright Footer - Positioned in the padding area reserved by views (pb-24) */}
+        <div className="absolute bottom-20 left-0 w-full text-center pb-2 pointer-events-none z-0">
+          <p className="text-[10px] text-gray-400 opacity-80 scale-90 font-medium">版权所有 海南宙元信息技术有限公司 © 2026</p>
+        </div>
       </main>
 
       <Navbar currentTab={currentTab} onTabChange={setCurrentTab} />
