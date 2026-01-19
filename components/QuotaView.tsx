@@ -14,6 +14,7 @@ interface CategoryLimit {
 
 export const QuotaView: React.FC = () => {
   const [usedQuota, setUsedQuota] = useState(0);
+  const [categoryDetails, setCategoryDetails] = useState<Record<string, number>>({});
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [animateProgress, setAnimateProgress] = useState(false);
 
@@ -21,10 +22,18 @@ export const QuotaView: React.FC = () => {
   
   // Read from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('hainan_used_quota');
-    if (saved) {
-      setUsedQuota(parseInt(saved, 10));
+    // 1. Total Money
+    const savedQuota = localStorage.getItem('hainan_used_quota');
+    if (savedQuota) {
+      setUsedQuota(parseInt(savedQuota, 10));
     }
+    
+    // 2. Category Details
+    const savedDetails = localStorage.getItem('hainan_quota_details');
+    if (savedDetails) {
+        setCategoryDetails(JSON.parse(savedDetails));
+    }
+
     // Trigger animation after mount
     setTimeout(() => setAnimateProgress(true), 100);
   }, []);
@@ -35,13 +44,14 @@ export const QuotaView: React.FC = () => {
   const handleReset = () => {
     if (confirm('确定要重置当前行程的额度账单吗？')) {
       localStorage.setItem('hainan_used_quota', '0');
+      localStorage.setItem('hainan_quota_details', '{}');
       setUsedQuota(0);
+      setCategoryDetails({});
     }
   };
 
-  // Mock Data for Categories (In a real app, this would also be stored in localStorage)
-  // We use current values to demonstrate the UI logic
-  const categories: CategoryLimit[] = [
+  // Base Data structure (values will be injected from state)
+  const baseCategories: Omit<CategoryLimit, 'current'>[] = [
     {
       id: 'cosmetics',
       label: '化妆品',
@@ -52,7 +62,6 @@ export const QuotaView: React.FC = () => {
       ),
       limit: 30,
       unit: '件',
-      current: 24, // Demo value
       ruleDetail: '每人每次离岛限购30件。套装产品按包装内实际件数计算（如：1盒面膜10片算10件）。',
       colorTheme: 'pink'
     },
@@ -66,7 +75,6 @@ export const QuotaView: React.FC = () => {
       ),
       limit: 4,
       unit: '部',
-      current: 1, // Demo value
       ruleDetail: '每人每次离岛限购4部。需拆封并激活，防止倒卖。',
       colorTheme: 'blue'
     },
@@ -80,7 +88,6 @@ export const QuotaView: React.FC = () => {
       ),
       limit: 1500,
       unit: 'ml',
-      current: 1500, // Demo value
       ruleDetail: '每人每次离岛限购1500ml。通常为2瓶750ml红酒或3瓶500ml茅台。',
       colorTheme: 'purple'
     }
@@ -97,6 +104,14 @@ export const QuotaView: React.FC = () => {
       default: return { bg: 'bg-gray-50', text: 'text-gray-600', bar: 'bg-gray-400', iconBg: 'bg-gray-100' };
     }
   };
+
+  // Filter categories to only show those that have a count > 0
+  const activeCategories = baseCategories
+    .map(cat => ({
+        ...cat,
+        current: categoryDetails[cat.id] || 0
+    }))
+    .filter(cat => cat.current > 0);
 
   return (
     <div className="p-4 pb-24">
@@ -144,65 +159,76 @@ export const QuotaView: React.FC = () => {
       {/* Categories Grid Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-bold text-gray-800 text-base">单次/单品类限制提醒</h3>
-        <span className="text-xs text-gray-400">点击卡片查看规则</span>
+        {activeCategories.length > 0 && <span className="text-xs text-gray-400">点击卡片查看规则</span>}
       </div>
 
       {/* Interactive Categories Grid */}
-      <div className="grid grid-cols-1 gap-4 mb-6">
-        {categories.map((cat) => {
-          const percent = Math.min(100, (cat.current / cat.limit) * 100);
-          const theme = getThemeColors(cat.colorTheme, percent);
-          const isExpanded = expandedId === cat.id;
-
-          return (
-            <div 
-                key={cat.id}
-                onClick={() => setExpandedId(isExpanded ? null : cat.id)}
-                className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all duration-300 cursor-pointer hover:shadow-md ${isExpanded ? 'ring-2 ring-teal-500/20' : ''}`}
-            >
-              <div className="flex items-center">
-                {/* Icon Box */}
-                <div className={`w-12 h-12 rounded-2xl ${theme.iconBg} ${theme.text} flex items-center justify-center mr-4 shrink-0 shadow-inner`}>
-                   {cat.icon}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <h4 className="font-bold text-gray-800">{cat.label}</h4>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${theme.bg} ${theme.text}`}>
-                       {cat.current} / {cat.limit} {cat.unit}
-                    </span>
+      {activeCategories.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 mb-6">
+            {activeCategories.map((cat) => {
+              const percent = Math.min(100, (cat.current / cat.limit) * 100);
+              const theme = getThemeColors(cat.colorTheme, percent);
+              const isExpanded = expandedId === cat.id;
+    
+              return (
+                <div 
+                    key={cat.id}
+                    onClick={() => setExpandedId(isExpanded ? null : cat.id)}
+                    className={`bg-white rounded-2xl p-4 shadow-sm border border-gray-100 transition-all duration-300 cursor-pointer hover:shadow-md ${isExpanded ? 'ring-2 ring-teal-500/20' : ''}`}
+                >
+                  <div className="flex items-center">
+                    {/* Icon Box */}
+                    <div className={`w-12 h-12 rounded-2xl ${theme.iconBg} ${theme.text} flex items-center justify-center mr-4 shrink-0 shadow-inner`}>
+                       {cat.icon}
+                    </div>
+    
+                    {/* Info */}
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <h4 className="font-bold text-gray-800">{cat.label}</h4>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${theme.bg} ${theme.text}`}>
+                           {cat.current} / {cat.limit} {cat.unit}
+                        </span>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-[1200ms] ease-out ${theme.bar}`} 
+                          style={{ width: animateProgress ? `${percent}%` : '0%' }}
+                        ></div>
+                      </div>
+                    </div>
+    
+                    {/* Arrow */}
+                    <div className="ml-3 text-gray-300 transition-transform duration-300" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </div>
                   </div>
-                  
-                  {/* Progress Bar */}
-                  <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-[1200ms] ease-out ${theme.bar}`} 
-                      style={{ width: animateProgress ? `${percent}%` : '0%' }}
-                    ></div>
+    
+                  {/* Expanded Rule Detail */}
+                  <div 
+                    className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-24 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}
+                  >
+                     <div className="bg-gray-50 p-3 rounded-xl text-xs text-gray-600 leading-relaxed border border-gray-100">
+                        <span className="font-bold text-gray-800">海关规定：</span>
+                        {cat.ruleDetail}
+                     </div>
                   </div>
                 </div>
-
-                {/* Arrow */}
-                <div className="ml-3 text-gray-300 transition-transform duration-300" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
+              );
+            })}
+          </div>
+      ) : (
+          /* Empty State */
+          <div className="mb-6 p-6 rounded-2xl bg-gray-50 border border-dashed border-gray-200 text-center flex flex-col items-center justify-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-gray-300 mb-3">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
               </div>
-
-              {/* Expanded Rule Detail */}
-              <div 
-                className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-24 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}`}
-              >
-                 <div className="bg-gray-50 p-3 rounded-xl text-xs text-gray-600 leading-relaxed border border-gray-100">
-                    <span className="font-bold text-gray-800">海关规定：</span>
-                    {cat.ruleDetail}
-                 </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              <p className="text-gray-500 font-medium text-sm">暂无特定品类消费记录</p>
+              <p className="text-xs text-gray-400 mt-1 mb-3">请使用「海关眼」扫描商品，系统将自动分类记账。</p>
+          </div>
+      )}
 
       {/* Tips Card */}
        <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm relative overflow-hidden">

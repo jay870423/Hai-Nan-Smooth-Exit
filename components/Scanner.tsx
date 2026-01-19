@@ -58,14 +58,46 @@ export const Scanner: React.FC = () => {
     }
   };
 
+  // Helper to categorize string items into specific quota categories
+  const categorizeItem = (itemName: string): string => {
+    const lower = itemName.toLowerCase();
+    if (/手机|phone|iphone|android|mobile|华为|小米|apple/i.test(lower)) return 'phone';
+    if (/酒|wine|liquor|beer|alcohol|茅台|五粮液|whiskey/i.test(lower)) return 'alcohol';
+    if (/霜|乳|液|精华|口红|粉底|mask|cream|lotion|serum|lipstick|makeup|skincare|化妆|护肤/i.test(lower)) return 'cosmetics';
+    return 'other';
+  };
+
   const addToQuota = () => {
     if (!result || isAddedToQuota) return;
 
     try {
+      // 1. Update Total Money Value
       const currentUsed = parseInt(localStorage.getItem('hainan_used_quota') || '0', 10);
       const newUsed = currentUsed + result.estimatedValue;
       localStorage.setItem('hainan_used_quota', newUsed.toString());
       
+      // 2. Update Category Details (Count/Volume)
+      // Structure: { cosmetics: 5, phone: 1, alcohol: 1000 }
+      const currentDetails = JSON.parse(localStorage.getItem('hainan_quota_details') || '{}');
+      
+      result.detectedItems.forEach(item => {
+        const category = categorizeItem(item);
+        if (category === 'other') return;
+
+        const currentVal = currentDetails[category] || 0;
+        
+        // Special logic: Alcohol is measured in ML. 
+        // Assumption: 1 detected "item" of alcohol is approx 500ml standard bottle if not specified.
+        if (category === 'alcohol') {
+            currentDetails[category] = currentVal + 500;
+        } else {
+            // Others are just counts
+            currentDetails[category] = currentVal + 1;
+        }
+      });
+      
+      localStorage.setItem('hainan_quota_details', JSON.stringify(currentDetails));
+
       setIsAddedToQuota(true);
       // Optional: Trigger a custom event if we wanted to update other components immediately without unmount
     } catch (e) {
