@@ -90,17 +90,31 @@ export const QuotaView: React.FC = () => {
       unit: 'ml',
       ruleDetail: '每人每次离岛限购1500ml。通常为2瓶750ml红酒或3瓶500ml茅台。',
       colorTheme: 'purple'
+    },
+    {
+      id: 'other',
+      label: '其他物品',
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+        </svg>
+      ),
+      limit: 999, // Dummy limit for calculation, since it's unlimited
+      unit: '件',
+      ruleDetail: '服饰、箱包、手表、食品等其他品类。无件数限制，但占用年度10万元免税额度。',
+      colorTheme: 'orange'
     }
   ];
 
   const getThemeColors = (theme: string, percentage: number) => {
-    // If usage is high (>90%), force red warning
-    if (percentage >= 100) return { bg: 'bg-red-50', text: 'text-red-600', bar: 'bg-red-500', iconBg: 'bg-red-100' };
+    // If usage is high (>90%), force red warning (Exception: 'other' is fine unless money runs out)
+    if (percentage >= 100 && theme !== 'orange') return { bg: 'bg-red-50', text: 'text-red-600', bar: 'bg-red-500', iconBg: 'bg-red-100' };
     
     switch(theme) {
       case 'pink': return { bg: 'bg-pink-50', text: 'text-pink-600', bar: 'bg-pink-400', iconBg: 'bg-pink-100' };
       case 'blue': return { bg: 'bg-blue-50', text: 'text-blue-600', bar: 'bg-blue-400', iconBg: 'bg-blue-100' };
       case 'purple': return { bg: 'bg-purple-50', text: 'text-purple-600', bar: 'bg-purple-400', iconBg: 'bg-purple-100' };
+      case 'orange': return { bg: 'bg-orange-50', text: 'text-orange-600', bar: 'bg-orange-400', iconBg: 'bg-orange-100' };
       default: return { bg: 'bg-gray-50', text: 'text-gray-600', bar: 'bg-gray-400', iconBg: 'bg-gray-100' };
     }
   };
@@ -158,15 +172,16 @@ export const QuotaView: React.FC = () => {
 
       {/* Categories Grid Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="font-bold text-gray-800 text-base">单次/单品类限制提醒</h3>
-        {activeCategories.length > 0 && <span className="text-xs text-gray-400">点击卡片查看规则</span>}
+        <h3 className="font-bold text-gray-800 text-base">消费品类明细</h3>
+        {activeCategories.length > 0 && <span className="text-xs text-gray-400">点击查看规则</span>}
       </div>
 
       {/* Interactive Categories Grid */}
       {activeCategories.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 mb-6">
             {activeCategories.map((cat) => {
-              const percent = Math.min(100, (cat.current / cat.limit) * 100);
+              const isOther = cat.id === 'other';
+              const percent = isOther ? Math.min(100, (cat.current / 50) * 100) : Math.min(100, (cat.current / cat.limit) * 100); // For 'other', just show some progress for visual effect
               const theme = getThemeColors(cat.colorTheme, percent);
               const isExpanded = expandedId === cat.id;
     
@@ -186,9 +201,15 @@ export const QuotaView: React.FC = () => {
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
                         <h4 className="font-bold text-gray-800">{cat.label}</h4>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${theme.bg} ${theme.text}`}>
-                           {cat.current} / {cat.limit} {cat.unit}
-                        </span>
+                        {isOther ? (
+                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600`}>
+                               已购 {cat.current} 件 (不限购)
+                             </span>
+                        ) : (
+                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${theme.bg} ${theme.text}`}>
+                                {cat.current} / {cat.limit} {cat.unit}
+                             </span>
+                        )}
                       </div>
                       
                       {/* Progress Bar */}

@@ -87,21 +87,20 @@ export const Scanner: React.FC = () => {
       localStorage.setItem('hainan_used_quota', newUsed.toString());
       
       // 2. Update Category Details (Count/Volume)
-      // Structure: { cosmetics: 5, phone: 1, alcohol: 1000 }
+      // Structure: { cosmetics: 5, phone: 1, alcohol: 1000, other: 3 }
       const currentDetails = JSON.parse(localStorage.getItem('hainan_quota_details') || '{}');
       let addedCounts: Record<string, number> = {};
       
       result.detectedItems.forEach(item => {
         const category = categorizeItem(item);
-        if (category === 'other') return;
-
+        // REMOVED: if (category === 'other') return; -> NOW WE TRACK EVERYTHING
+        
         const currentVal = currentDetails[category] || 0;
         
         // Special logic: Alcohol is measured in ML. 
-        // Assumption: 1 detected "item" of alcohol is approx 500ml standard bottle if not specified.
         if (category === 'alcohol') {
             currentDetails[category] = currentVal + 500;
-            addedCounts[category] = (addedCounts[category] || 0) + 1; // Count bottles for toast
+            addedCounts[category] = (addedCounts[category] || 0) + 1; 
         } else {
             // Others are just counts
             currentDetails[category] = currentVal + 1;
@@ -117,12 +116,16 @@ export const Scanner: React.FC = () => {
       const categoriesDetected = Object.keys(addedCounts);
       if (categoriesDetected.length > 0) {
         const detailStr = categoriesDetected.map(k => {
-            const label = k === 'cosmetics' ? '化妆品' : k === 'phone' ? '手机' : '酒类';
+            let label = '其他物品';
+            if (k === 'cosmetics') label = '化妆品';
+            if (k === 'phone') label = '手机';
+            if (k === 'alcohol') label = '酒类';
             return `${label}+${addedCounts[k]}`;
         }).join(', ');
         setNotification(`已记账 ¥${result.estimatedValue}，包含: ${detailStr}`);
       } else {
-        setNotification(`已记账 ¥${result.estimatedValue} (未检测到限购品类)`);
+        // Fallback if detectedItems was empty but value existed
+        setNotification(`已记账 ¥${result.estimatedValue}`);
       }
 
       // Auto hide notification
