@@ -293,7 +293,7 @@ export const BlacklistView: React.FC = () => {
                         onChange={(e) => setNewItemReason(e.target.value)}
                         className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none text-sm"
                     >
-                        <option value="超出件数限制">超出件数限制 (如: >30件)</option>
+                        <option value="超出件数限制">超出件数限制 (如: &gt;30件)</option>
                         <option value="超出10万额度">超出10万年度额度</option>
                         <option value="疑似代购倒卖">疑似代购/倒卖 (量大)</option>
                         <option value="未拆封/未激活">未拆封/未激活 (手机等)</option>
